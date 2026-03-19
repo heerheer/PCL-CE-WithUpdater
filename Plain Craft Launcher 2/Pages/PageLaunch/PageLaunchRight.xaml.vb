@@ -56,7 +56,7 @@ Public Class PageLaunchRight
         End If
 
         PanMcPatchUpdate.Visibility = Visibility.Visible
-        Dim instanceKey = context.RootPath
+        Dim instanceKey = context.RootPath & "|" & context.SelectedVersionName
         If Not force AndAlso instanceKey = McPatchLastInstanceKey Then Return
         If Interlocked.CompareExchange(McPatchUpdating, 0, 0) <> 0 Then Return
 
@@ -68,10 +68,18 @@ Public Class PageLaunchRight
         If instance Is Nothing Then Return Nothing
 
         Dim selectedName As String = instance.Name
+        Dim instancePath As String = instance.PathInstance
         Dim rootPath As String = instance.PathIndie
         If String.IsNullOrWhiteSpace(rootPath) Then Return Nothing
 
-        Dim configPath As String = ExePath & "PCL\mcpatch.config.json"
+        Dim configPath As String = instancePath & "mcpatch.config.json"
+        If Not File.Exists(configPath) AndAlso
+           Not String.Equals(instancePath, rootPath, StringComparison.OrdinalIgnoreCase) Then
+            Dim rootConfigPath As String = rootPath & "mcpatch.config.json"
+            If File.Exists(rootConfigPath) Then configPath = rootConfigPath
+        End If
+        If Not File.Exists(configPath) Then Return Nothing
+
         Dim endpoints = McPatchService.LoadEndpointOptions(configPath)
         Return New McPatchUpdateContext With {
             .RootPath = rootPath,

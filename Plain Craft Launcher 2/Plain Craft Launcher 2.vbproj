@@ -118,9 +118,5 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="LICENCE" />
-    <Content Include="Updater\mcpatch.config.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <TargetPath>PCL\mcpatch.config.json</TargetPath>
-    </Content>
   </ItemGroup>
 </Project>
