@@ -23,13 +23,9 @@ public sealed class McPatchEndpointOptions
 
 public sealed class McPatchUpdateContext
 {
-    public string MinecraftRootPath { get; set; } = string.Empty;
+    public string RootPath { get; set; } = string.Empty;
 
     public string SelectedVersionName { get; set; } = string.Empty;
-
-    public string SelectedVersionPath { get; set; } = string.Empty;
-
-    public string VersionStateRootPath { get; set; } = string.Empty;
 
     public McPatchEndpointOptions Endpoints { get; set; } = new();
 }

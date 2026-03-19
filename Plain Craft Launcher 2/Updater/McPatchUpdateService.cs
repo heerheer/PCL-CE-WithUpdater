@@ -105,7 +105,7 @@ public sealed class McPatchUpdateService
             return;
         }
 
-        Directory.CreateDirectory(context.VersionStateRootPath);
+        Directory.CreateDirectory(context.RootPath);
 
         for (var i = 0; i < orderedPendingVersions.Count; i++)
         {
@@ -139,19 +139,9 @@ public sealed class McPatchUpdateService
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(context.Endpoints);
 
-        if (string.IsNullOrWhiteSpace(context.MinecraftRootPath))
+        if (string.IsNullOrWhiteSpace(context.RootPath))
         {
-            throw new ArgumentException("MinecraftRootPath 不能为空", nameof(context));
-        }
-
-        if (string.IsNullOrWhiteSpace(context.SelectedVersionPath))
-        {
-            throw new ArgumentException("SelectedVersionPath 不能为空", nameof(context));
-        }
-
-        if (string.IsNullOrWhiteSpace(context.VersionStateRootPath))
-        {
-            throw new ArgumentException("VersionStateRootPath 不能为空", nameof(context));
+            throw new ArgumentException("RootPath 不能为空", nameof(context));
         }
     }
 
@@ -301,7 +291,7 @@ public sealed class McPatchUpdateService
         VerifySha1(compressedData, file.BzippedHash, $"{file.Path} 的 bzipped-hash 不匹配");
 
         var targetPath = ResolvePatchPath(context, file.Path);
-        Directory.CreateDirectory(Path.GetDirectoryName(targetPath) ?? context.MinecraftRootPath);
+        Directory.CreateDirectory(Path.GetDirectoryName(targetPath) ?? context.RootPath);
 
         var tempPath = targetPath + ".mcpatchtmp";
         TryDeleteFile(tempPath);
@@ -468,40 +458,16 @@ public sealed class McPatchUpdateService
 
     private static void WriteCurrentVersion(McPatchUpdateContext context, string version)
     {
-        var primaryPath = Path.Combine(context.VersionStateRootPath, "mc-patch-version.txt");
-        Directory.CreateDirectory(Path.GetDirectoryName(primaryPath) ?? context.VersionStateRootPath);
+        var primaryPath = Path.Combine(context.RootPath, "mc-patch-version.txt");
+        Directory.CreateDirectory(Path.GetDirectoryName(primaryPath) ?? context.RootPath);
         File.WriteAllText(primaryPath, version + Environment.NewLine, Encoding.UTF8);
     }
 
     private static IEnumerable<string> EnumerateVersionStateFiles(McPatchUpdateContext context)
     {
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        if (!string.IsNullOrWhiteSpace(context.VersionStateRootPath))
+        if (!string.IsNullOrWhiteSpace(context.RootPath))
         {
-            var path = Path.Combine(context.VersionStateRootPath, "mc-patch-version.txt");
-            if (seen.Add(path))
-            {
-                yield return path;
-            }
-        }
-
-        if (!string.IsNullOrWhiteSpace(context.MinecraftRootPath))
-        {
-            var path = Path.Combine(context.MinecraftRootPath, "mc-patch-version.txt");
-            if (seen.Add(path))
-            {
-                yield return path;
-            }
-        }
-
-        if (!string.IsNullOrWhiteSpace(context.SelectedVersionPath))
-        {
-            var path = Path.Combine(context.SelectedVersionPath, "mc-patch-version.txt");
-            if (seen.Add(path))
-            {
-                yield return path;
-            }
+            yield return Path.Combine(context.RootPath, "mc-patch-version.txt");
         }
     }
 
@@ -513,19 +479,24 @@ public sealed class McPatchUpdateService
             normalized = normalized[1..];
         }
 
+        var selectedPrefix = $"versions\\{context.SelectedVersionName}\\";
+        if (!string.IsNullOrWhiteSpace(context.SelectedVersionName) &&
+            normalized.StartsWith($".minecraft\\{selectedPrefix}", StringComparison.OrdinalIgnoreCase))
+        {
+            normalized = normalized[$".minecraft\\{selectedPrefix}".Length..];
+        }
+        if (!string.IsNullOrWhiteSpace(context.SelectedVersionName) &&
+            normalized.StartsWith(selectedPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            normalized = normalized[selectedPrefix.Length..];
+        }
+
         if (normalized.StartsWith(".minecraft\\", StringComparison.OrdinalIgnoreCase))
         {
             normalized = normalized[".minecraft\\".Length..];
         }
 
-        var selectedPrefix = $"versions\\{context.SelectedVersionName}\\";
-        if (!string.IsNullOrWhiteSpace(context.SelectedVersionName) &&
-            normalized.StartsWith(selectedPrefix, StringComparison.OrdinalIgnoreCase))
-        {
-            return CombineSafe(context.SelectedVersionPath, normalized[selectedPrefix.Length..]);
-        }
-
-        return CombineSafe(context.MinecraftRootPath, normalized);
+        return CombineSafe(context.RootPath, normalized);
     }
 
     private static string CombineSafe(string root, string relative)

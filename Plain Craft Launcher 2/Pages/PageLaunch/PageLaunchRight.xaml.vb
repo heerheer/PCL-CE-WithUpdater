@@ -56,7 +56,7 @@ Public Class PageLaunchRight
         End If
 
         PanMcPatchUpdate.Visibility = Visibility.Visible
-        Dim instanceKey = context.SelectedVersionPath & "|" & context.MinecraftRootPath
+        Dim instanceKey = context.RootPath
         If Not force AndAlso instanceKey = McPatchLastInstanceKey Then Return
         If Interlocked.CompareExchange(McPatchUpdating, 0, 0) <> 0 Then Return
 
@@ -67,18 +67,15 @@ Public Class PageLaunchRight
         Dim instance = McInstanceSelected
         If instance Is Nothing Then Return Nothing
 
-        Dim selectedPath As String = instance.PathInstance
         Dim selectedName As String = instance.Name
-        Dim minecraftRoot As String = instance.PathIndie
-        If String.IsNullOrWhiteSpace(selectedPath) OrElse String.IsNullOrWhiteSpace(minecraftRoot) Then Return Nothing
+        Dim rootPath As String = instance.PathIndie
+        If String.IsNullOrWhiteSpace(rootPath) Then Return Nothing
 
         Dim configPath As String = ExePath & "PCL\mcpatch.config.json"
         Dim endpoints = McPatchService.LoadEndpointOptions(configPath)
         Return New McPatchUpdateContext With {
-            .MinecraftRootPath = minecraftRoot,
+            .RootPath = rootPath,
             .SelectedVersionName = selectedName,
-            .SelectedVersionPath = selectedPath,
-            .VersionStateRootPath = selectedPath,
             .Endpoints = endpoints
         }
     End Function
