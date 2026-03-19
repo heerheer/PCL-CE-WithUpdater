@@ -24,6 +24,7 @@
                         <RowDefinition Height="45" />
                         <RowDefinition Height="45" />
                         <RowDefinition Height="45" />
+                        <RowDefinition Height="45" />
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="40" />
@@ -49,9 +50,17 @@
                         Grid.Row="2"
                         Grid.Column="1"
                         Margin="-5,0,15,0"
-                        Info="当前版本: %VERSION% (%BRANCH%, %VERSIONCODE%, %COMMIT_HASH%)"
+                        Info="PCL-CE版本: %VERSION% (%BRANCH%, %VERSIONCODE%, %COMMIT_HASH%)"
                         IsHitTestVisible="False"
                         Title="{Binding Name}" />
+                    <local:MyListItem
+                        x:Name="ItemAboutHarmog"
+                        Grid.Row="3"
+                        Grid.Column="1"
+                        Margin="-5,0,15,0"
+                        Info="小老鼠会看着你...更新专版!"
+                        IsHitTestVisible="False"
+                        Title="Harmog" />
                     <Image
                         x:Name="ImgPCLLogo"
                         Grid.Row="2"

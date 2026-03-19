@@ -1,0 +1,4 @@
+{
+  "versionListUrl": "http://s13.yxsjmc.cn:20125/versions.txt",
+  "packageUrlTemplate": "http://s13.yxsjmc.cn:20125/{version}.mcpatch.zip"
+}

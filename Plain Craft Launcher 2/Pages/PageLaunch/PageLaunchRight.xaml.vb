@@ -1,7 +1,21 @@
 Imports PCL.Core.Utils.Exts
 Imports PCL.Core.App
+Imports PCL.Core.Updater
+Imports System.Linq
+Imports System.Threading
+Imports System.Windows.Input
+Imports System.Windows.Threading
 Public Class PageLaunchRight
     Implements IRefreshable
+    Private ReadOnly McPatchService As New McPatchUpdateService()
+    Private McPatchWatcher As DispatcherTimer = Nothing
+    Private McPatchLastInstanceKey As String = ""
+    Private McPatchLastResult As McPatchCheckResult = Nothing
+    Private McPatchCurrentListStatus As McPatchListStatus = McPatchListStatus.FirstFetching
+    Private McPatchCurrentRetryCount As Integer = 0
+    Private McPatchCurrentError As String = ""
+    Private McPatchRefreshing As Integer = 0
+    Private McPatchUpdating As Integer = 0
 
     Private Sub Init() Handles Me.Loaded
         PanBack.ScrollToHome()
@@ -9,21 +23,210 @@ Public Class PageLaunchRight
         PanLog.Visibility = If(ModeDebug, Visibility.Visible, Visibility.Collapsed)
         '社区版提示
         PanHint.Visibility = If(Setup.Get("UiLauncherCEHint"), Visibility.Visible, Visibility.Collapsed)
-        LabHint1.Text = $"你正在使用 PCL 社区版！此版本为独立开发和维护，与官方版本维护路线不同，体验有所出入。{vbCrLf}{vbCrLf}如果你是意外下载到了社区版，我们十分建议您下载 PCL 官方版长期使用，此发行版本对新手用户体验可能不友好。{vbCrLf}此外，社区版的问题请向社区版的仓库提交 Issue，不要向官方仓库反馈社区版的问题哦！{vbCrLf}"
-        LabHint2.Text = $"若要永久隐藏此提示，请输入正确的 PCL CE 开发组织名称。"
+        LabHint1.Text = $"你正在使用 PCL 社区版的Fork版本！{vbCrLf}此版本单独添加了一个有关服务器更新的小功能!{vbCrLf}"
+        InitMcPatchModule()
+    End Sub
+    Private Sub DisposePage() Handles Me.Unloaded
+        If McPatchWatcher IsNot Nothing Then McPatchWatcher.Stop()
     End Sub
 
-    '暂时关闭快照版提示
+    '由于是Fork的就不要太正式了，直接在主页放个提示就行了，主页还经常变动，放在这里比较稳妥
     Private Sub BtnHintClose_Click(sender As Object, e As EventArgs) Handles BtnHintClose.Click
-        Dim input = MyMsgBoxInput("输入 PCL CE 开发组织名称")
-        If input.IsNullOrWhiteSpace() Then Return
-        input = New String(input.Where(Function(x) Char.IsAsciiLetter(x)).ToArray()).ToLower()
-        If input.Contains("pclcommunity") Then
-            AniDispose(PanHint, True)
-            States.Hint.CEMessage = False
-        Else
-            Hint("不太对哦……")
+        AniDispose(PanHint, True)
+        States.Hint.CEMessage = False
+    End Sub
+    Private Sub InitMcPatchModule()
+        If McPatchWatcher Is Nothing Then
+            McPatchWatcher = New DispatcherTimer With {.Interval = TimeSpan.FromSeconds(2)}
+            AddHandler McPatchWatcher.Tick, AddressOf McPatchWatcher_Tick
         End If
+        McPatchWatcher.Start()
+        RefreshMcPatchModule(True)
+    End Sub
+    Private Sub McPatchWatcher_Tick(sender As Object, e As EventArgs)
+        RefreshMcPatchModule(False)
+    End Sub
+    Private Sub RefreshMcPatchModule(force As Boolean)
+        Dim context = BuildMcPatchContext()
+        If context Is Nothing Then
+            PanMcPatchUpdate.Visibility = Visibility.Collapsed
+            McPatchLastInstanceKey = ""
+            McPatchLastResult = Nothing
+            Return
+        End If
+
+        PanMcPatchUpdate.Visibility = Visibility.Visible
+        Dim instanceKey = context.SelectedVersionPath & "|" & context.MinecraftRootPath
+        If Not force AndAlso instanceKey = McPatchLastInstanceKey Then Return
+        If Interlocked.CompareExchange(McPatchUpdating, 0, 0) <> 0 Then Return
+
+        McPatchLastInstanceKey = instanceKey
+        StartMcPatchCheck(context, instanceKey)
+    End Sub
+    Private Function BuildMcPatchContext() As McPatchUpdateContext
+        Dim instance = McInstanceSelected
+        If instance Is Nothing Then Return Nothing
+
+        Dim selectedPath As String = instance.PathInstance
+        Dim selectedName As String = instance.Name
+        Dim minecraftRoot As String = instance.PathIndie
+        If String.IsNullOrWhiteSpace(selectedPath) OrElse String.IsNullOrWhiteSpace(minecraftRoot) Then Return Nothing
+
+        Dim configPath As String = ExePath & "PCL\mcpatch.config.json"
+        Dim endpoints = McPatchService.LoadEndpointOptions(configPath)
+        Return New McPatchUpdateContext With {
+            .MinecraftRootPath = minecraftRoot,
+            .SelectedVersionName = selectedName,
+            .SelectedVersionPath = selectedPath,
+            .VersionStateRootPath = selectedPath,
+            .Endpoints = endpoints
+        }
+    End Function
+    Private Sub StartMcPatchCheck(context As McPatchUpdateContext, instanceKey As String)
+        If Interlocked.CompareExchange(McPatchRefreshing, 1, 0) <> 0 Then Return
+
+        McPatchLastResult = Nothing
+        McPatchCurrentListStatus = McPatchListStatus.FirstFetching
+        McPatchCurrentRetryCount = 0
+        McPatchCurrentError = ""
+        BtnMcPatchRetry.Visibility = Visibility.Collapsed
+        BtnMcPatchUpdateNow.IsEnabled = False
+        ProgressMcPatch.Value = 0
+        LabMcPatchCurrentVersion.Text = "当前版本：读取中..."
+        LabMcPatchLatestVersion.Text = "最新版本：读取中..."
+        LabMcPatchProgress.Text = "正在获取更新列表..."
+        UpdateMcPatchLinkText()
+
+        RunInNewThread(
+        Sub()
+            Try
+                Dim result = McPatchService.CheckForUpdates(
+                    context,
+                    Sub(status, retryCount, errorText)
+                        RunInUi(
+                            Sub()
+                                If instanceKey <> McPatchLastInstanceKey Then Exit Sub
+                                McPatchCurrentListStatus = status
+                                McPatchCurrentRetryCount = retryCount
+                                McPatchCurrentError = If(errorText, "")
+                                UpdateMcPatchLinkText()
+                            End Sub)
+                    End Sub)
+
+                RunInUi(
+                    Sub()
+                        If instanceKey <> McPatchLastInstanceKey Then Exit Sub
+                        McPatchLastResult = result
+                        RenderMcPatchCheckResult(result)
+                    End Sub)
+            Catch ex As Exception
+                RunInUi(
+                    Sub()
+                        If instanceKey <> McPatchLastInstanceKey Then Exit Sub
+                        McPatchCurrentListStatus = McPatchListStatus.Failed
+                        McPatchCurrentError = ex.Message
+                        UpdateMcPatchLinkText()
+                        BtnMcPatchRetry.Visibility = Visibility.Visible
+                        BtnMcPatchUpdateNow.IsEnabled = False
+                        LabMcPatchProgress.Text = "更新列表获取失败，可手动重试。"
+                    End Sub)
+                Log(ex, "[MCPatch] 获取更新列表失败", If(ModeDebug, LogLevel.Debug, LogLevel.Hint))
+            Finally
+                Interlocked.Exchange(McPatchRefreshing, 0)
+            End Try
+        End Sub, $"MCPatch 列表刷新 #{GetUuid()}")
+    End Sub
+    Private Sub RenderMcPatchCheckResult(result As McPatchCheckResult)
+        Dim currentVersion = If(String.IsNullOrWhiteSpace(result.CurrentVersion), "未安装", result.CurrentVersion)
+        Dim latestVersion = If(String.IsNullOrWhiteSpace(result.LatestVersion), "未知", result.LatestVersion)
+
+        LabMcPatchCurrentVersion.Text = $"当前版本：{currentVersion}"
+        LabMcPatchLatestVersion.Text = $"最新版本：{latestVersion}{If(result.NeedUpdate, "（需要更新）", "（已是最新）")}"
+        UpdateMcPatchLinkText()
+
+        BtnMcPatchRetry.Visibility = Visibility.Collapsed
+        BtnMcPatchUpdateNow.IsEnabled = result.NeedUpdate AndAlso Interlocked.CompareExchange(McPatchUpdating, 0, 0) = 0
+        ProgressMcPatch.Value = If(result.NeedUpdate, 0, 1)
+        If result.NeedUpdate Then
+            Dim firstVersion = result.PendingVersions.FirstOrDefault()
+            Dim lastVersion = result.PendingVersions.LastOrDefault()
+            LabMcPatchProgress.Text = $"待更新 {result.PendingVersions.Count} 个版本：{firstVersion} → {lastVersion}"
+        Else
+            LabMcPatchProgress.Text = "当前已是最新，无需更新。"
+        End If
+    End Sub
+    Private Sub UpdateMcPatchLinkText()
+        Select Case McPatchCurrentListStatus
+            Case McPatchListStatus.FirstFetching
+                LabMcPatchLinkState.Text = "列表状态：首次获取中"
+            Case McPatchListStatus.Retrying
+                LabMcPatchLinkState.Text = $"列表状态：重试中（第 {McPatchCurrentRetryCount} 次）"
+            Case McPatchListStatus.Succeeded
+                LabMcPatchLinkState.Text = "列表状态：已获得最新列表"
+            Case McPatchListStatus.Failed
+                Dim detail = If(String.IsNullOrWhiteSpace(McPatchCurrentError), "", $"（{McPatchCurrentError}）")
+                LabMcPatchLinkState.Text = "列表状态：重试失败" & detail
+            Case Else
+                LabMcPatchLinkState.Text = "列表状态：未知"
+        End Select
+    End Sub
+    Private Sub BtnMcPatchRetry_Click(sender As Object, e As MouseButtonEventArgs) Handles BtnMcPatchRetry.Click
+        RefreshMcPatchModule(True)
+    End Sub
+    Private Sub BtnMcPatchUpdateNow_Click(sender As Object, e As MouseButtonEventArgs) Handles BtnMcPatchUpdateNow.Click
+        If McLaunchLoader.State = LoadState.Loading OrElse HasRunningMinecraft Then
+            Hint("检测到游戏正在运行或启动中，请先关闭游戏后再进行 MCPatch 更新。", HintType.Critical)
+            Return
+        End If
+
+        Dim context = BuildMcPatchContext()
+        If context Is Nothing Then
+            PanMcPatchUpdate.Visibility = Visibility.Collapsed
+            Return
+        End If
+
+        If McPatchLastResult Is Nothing OrElse Not McPatchLastResult.NeedUpdate Then
+            Hint("当前没有可用更新。")
+            Return
+        End If
+        If Interlocked.CompareExchange(McPatchUpdating, 1, 0) <> 0 Then Return
+
+        Dim pendingVersions = New List(Of String)(McPatchLastResult.PendingVersions)
+        BtnMcPatchUpdateNow.IsEnabled = False
+        BtnMcPatchRetry.IsEnabled = False
+        ProgressMcPatch.Value = 0
+        LabMcPatchProgress.Text = "准备更新..."
+
+        RunInNewThread(
+        Sub()
+            Try
+                McPatchService.ApplyUpdates(
+                    context,
+                    pendingVersions,
+                    Sub(progress, message)
+                        RunInUi(
+                            Sub()
+                                ProgressMcPatch.Value = Math.Max(0, Math.Min(1, progress))
+                                LabMcPatchProgress.Text = message
+                            End Sub)
+                    End Sub)
+                RunInUi(Sub() Hint("MCPatch 更新完成！", HintType.Finish))
+            Catch ex As Exception
+                If TypeOf ex Is System.IO.IOException Then
+                    RunInUi(Sub() Hint("MCPatch 更新失败：文件被占用，请关闭游戏/Java/文件预览后重试。", HintType.Critical))
+                Else
+                    RunInUi(Sub() Hint("MCPatch 更新失败：" & ex.Message, HintType.Critical))
+                End If
+                Log(ex, "[MCPatch] 执行更新失败", If(ModeDebug, LogLevel.Debug, LogLevel.Hint))
+            Finally
+                Interlocked.Exchange(McPatchUpdating, 0)
+                RunInUi(
+                    Sub()
+                        BtnMcPatchRetry.IsEnabled = True
+                        RefreshMcPatchModule(True)
+                    End Sub)
+            End Try
+        End Sub, $"MCPatch 更新执行 #{GetUuid()}")
     End Sub
 
 #Region "主页"

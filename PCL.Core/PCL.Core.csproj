@@ -87,6 +87,7 @@
     </PropertyGroup>
     <ItemGroup>
         <Compile Include="**\*.cs" Exclude="bin\**;obj\**;publish\**;**\*.g.cs;SourceGenerators\**" />
+        <Compile Include="..\Plain Craft Launcher 2\Updater\*.cs" Link="Updater\%(Filename)%(Extension)" />
         <Page Include="**\*.xaml" Exclude="bin\**;obj\**;publish\**" />
         <Resource Include="UI\Assets\*" />
         <Resource Include="UI\Assets\Shaders\*.ps" />

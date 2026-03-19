@@ -1,0 +1,17 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "Plain Craft Launcher 2/Plain Craft Launcher 2.vbproj",
+        "-c",
+        "Debug"
+      ],
+      "problemMatcher": "$msCompile"
+    }
+  ]
+}

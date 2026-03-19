@@ -1,0 +1,15 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "PCL CE Debug",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build",
+      "program": "${workspaceFolder}/Plain Craft Launcher 2/bin/Debug/net8.0-windows/Plain Craft Launcher 2.exe",
+      "cwd": "${workspaceFolder}/Plain Craft Launcher 2",
+      "console": "internalConsole",
+      "stopAtEntry": false
+    }
+  ]
+}

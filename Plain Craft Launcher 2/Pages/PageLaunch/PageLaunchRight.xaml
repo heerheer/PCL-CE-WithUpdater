@@ -8,13 +8,26 @@
         <StackPanel Name="PanMain" Margin="25,25,25,10" Grid.IsSharedSizeScope="True">
             <StackPanel x:Name="PanCustom">
             </StackPanel>
-            <local:MyCard Margin="0,0,0,15" Title="社区版提示" x:Name="PanHint">
+            <local:MyCard Margin="0,0,0,15" Title="MCPatch 更新" x:Name="PanMcPatchUpdate" Visibility="Collapsed">
+                <StackPanel Margin="25,38,23,15">
+                    <TextBlock x:Name="LabMcPatchCurrentVersion" Margin="0,0,0,4" TextWrapping="Wrap" FontSize="13.5" />
+                    <TextBlock x:Name="LabMcPatchLatestVersion" Margin="0,0,0,4" TextWrapping="Wrap" FontSize="13.5" />
+                    <TextBlock x:Name="LabMcPatchLinkState" Margin="0,0,0,8" TextWrapping="Wrap" FontSize="13.5" />
+                    <ProgressBar x:Name="ProgressMcPatch" Height="6" Minimum="0" Maximum="1" Margin="0,0,0,8" />
+                    <TextBlock x:Name="LabMcPatchProgress" Margin="0,0,0,10" TextWrapping="Wrap" FontSize="12.5" Opacity="0.85" />
+                    <StackPanel Orientation="Horizontal">
+                        <local:MyButton x:Name="BtnMcPatchUpdateNow" MinWidth="130" Height="34" Padding="13,0" Margin="0,0,10,0" Text="立刻更新" ColorType="Highlight" />
+                        <local:MyButton x:Name="BtnMcPatchRetry" MinWidth="130" Height="34" Padding="13,0" Text="手动重试" Visibility="Collapsed" />
+                    </StackPanel>
+                </StackPanel>
+            </local:MyCard>
+            <local:MyCard Margin="0,0,0,15" Title="社区Fork版提示" x:Name="PanHint">
                 <local:MyIconButton LogoScale="1.1" Logo="F1 M2,0 L0,2 8,10 0,18 2,20 10,12 18,20 20,18 12,10 20,2 18,0 10,8 2,0Z"
                                     Height="20" Margin="10" HorizontalAlignment="Right" VerticalAlignment="Top"
                                     x:Name="BtnHintClose" />
                 <StackPanel Margin="25,38,23,15">
                     <TextBlock x:Name="LabHint1" TextWrapping="Wrap" Margin="0,0,0,2" FontSize="13.5" />
-                    <TextBlock x:Name="LabHint2" TextWrapping="Wrap" Margin="0,0,0,2" FontSize="13.5" />
+                    
                 </StackPanel>
             </local:MyCard>
             <local:MyCard Margin="0,0,0,15" Title="启动日志" x:Name="PanLog">
