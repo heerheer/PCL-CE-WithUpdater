@@ -293,12 +293,11 @@ Public Class PageLaunchLeft
         Else
             If SelectedProfile IsNot Nothing Then
                 Type = PageType.ProfileSkin
-                BtnLaunch.IsEnabled = True
             Else
                 Type = PageType.Profile
-                If Not BtnLaunch.Text = "下载游戏" Then BtnLaunch.IsEnabled = False
             End If
         End If
+        RefreshButtonsUI()
         '刷新页面
         If PageCurrent = Type Then Return
         PageChange(Type, Anim)
@@ -511,9 +510,12 @@ Finish:
                 FrmLaunchLeft.BtnMore.Visibility = Visibility.Collapsed
             Case 3
                 Log("[Minecraft] 启动按钮：Minecraft 实例：" & McInstanceSelected.PathInstance)
-                FrmLaunchLeft.BtnLaunch.Text = "启动游戏"
+                Dim blockedByMcPatch = FrmLaunchRight IsNot Nothing AndAlso FrmLaunchRight.ShouldBlockLaunchByMcPatch()
+                FrmLaunchLeft.BtnLaunch.Text = If(blockedByMcPatch, "版本不一致请更新", "启动游戏")
                 FrmLaunchLeft.BtnInstance.IsEnabled = True
-                If SelectedProfile IsNot Nothing Then
+                If blockedByMcPatch Then
+                    BtnLaunch.IsEnabled = False
+                ElseIf SelectedProfile IsNot Nothing Then
                     BtnLaunch.IsEnabled = True
                 Else
                     BtnLaunch.IsEnabled = False

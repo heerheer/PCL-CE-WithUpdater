@@ -190,29 +190,6 @@ Public Class FormMain
         RunInNewThread(
             Sub()
                 Try
-                    '特殊版本提示
-#If DEBUG Or DEBUGCI Then
-                    If Environment.GetEnvironmentVariable("PCL_DISABLE_DEBUG_HINT") Is Nothing Then
-#If DEBUG Then
-                        Const hint = "当前运行的 PCL 社区版为 Debug 版本。" & vbCrLf &
-                                     "该版本仅适合开发者调试运行，可能会有严重的性能下降以及各种奇怪的网络问题。" & vbCrLf &
-                                     vbCrLf &
-                                     "非开发者用户使用该版本造成的一切问题均不被社区支持，相关 issue 可能会被直接关闭。" & vbCrLf &
-                                     "除非您是开发者，否则请立即删除该版本，并下载最新稳定版使用。"
-#Else
-                        Const hint = "当前运行的 PCL 社区版为 CI 自动构建版本。" & vbCrLf &
-                                     "该版本包含最新的漏洞修复、优化和新特性，但性能和稳定性较差，不适合日常使用和制作整合包。" & vbCrLf &
-                                     vbCrLf &
-                                     "除非社区开发者要求或您自己想要这么做，否则请下载最新稳定版使用。"
-#End If
-                        MyMsgBox($"{hint}{vbCrLf}{vbCrLf}可以添加 PCL_DISABLE_DEBUG_HINT 环境变量 (任意值) 来隐藏这个提示。",
-                                 "特殊版本提示", "我清楚我在做什么", "打开最新版下载页并退出", IsWarn:=True,
-                                 Button2Action:=Sub()
-                                                    OpenWebsite("https://github.com/PCL-Community/PCL2-CE/releases/latest")
-                                                    EndProgram(False)
-                                                End Sub)
-                    End If
-#End If
                     'EULA 提示
                     If Not Setup.Get("SystemEula") Then
                         Select Case MyMsgBox("在使用 PCL 前，请同意 PCL 的用户协议与免责声明。", "协议授权", "同意", "拒绝", "查看用户协议与免责声明",
