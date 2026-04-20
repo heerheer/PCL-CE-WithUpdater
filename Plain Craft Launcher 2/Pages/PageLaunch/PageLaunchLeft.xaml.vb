@@ -464,8 +464,10 @@ Finish:
     End Sub
     Private BtnLaunchState As Integer = 0
     Private BtnLaunchVersion As McInstance = Nothing
+    Private BtnLaunchMcPatchBlocked As Boolean = False
     Public Sub RefreshButtonsUI() Handles BtnLaunch.Loaded
         If Not BtnLaunch.IsLoaded Then Return
+        Dim blockedByMcPatch = FrmLaunchRight IsNot Nothing AndAlso FrmLaunchRight.ShouldBlockLaunchByMcPatch()
         '获取当前状态
         Dim CurrentState As Integer
         If (Not IsLoadFinished) OrElse McInstanceListLoader.State = LoadState.Loading OrElse McFolderListLoader.State = LoadState.Loading Then
@@ -483,9 +485,11 @@ Finish:
         End If
         '更新状态
         If CurrentState = BtnLaunchState AndAlso
-           If(McInstanceSelected Is Nothing, "", McInstanceSelected.PathInstance) = If(BtnLaunchVersion Is Nothing, "", BtnLaunchVersion.PathInstance) Then GoTo ExitRefresh
+           If(McInstanceSelected Is Nothing, "", McInstanceSelected.PathInstance) = If(BtnLaunchVersion Is Nothing, "", BtnLaunchVersion.PathInstance) AndAlso
+           blockedByMcPatch = BtnLaunchMcPatchBlocked Then GoTo ExitRefresh
         BtnLaunchVersion = McInstanceSelected
         BtnLaunchState = CurrentState
+        BtnLaunchMcPatchBlocked = blockedByMcPatch
         Select Case CurrentState
             Case 0
                 Log("[Minecraft] 启动按钮：正在加载 Minecraft 实例")
@@ -510,7 +514,6 @@ Finish:
                 FrmLaunchLeft.BtnMore.Visibility = Visibility.Collapsed
             Case 3
                 Log("[Minecraft] 启动按钮：Minecraft 实例：" & McInstanceSelected.PathInstance)
-                Dim blockedByMcPatch = FrmLaunchRight IsNot Nothing AndAlso FrmLaunchRight.ShouldBlockLaunchByMcPatch()
                 FrmLaunchLeft.BtnLaunch.Text = If(blockedByMcPatch, "版本不一致请更新", "启动游戏")
                 FrmLaunchLeft.BtnInstance.IsEnabled = True
                 If blockedByMcPatch Then
