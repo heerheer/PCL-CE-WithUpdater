@@ -16,6 +16,16 @@ Public Class PageLaunchRight
     Private McPatchCurrentError As String = ""
     Private McPatchRefreshing As Integer = 0
     Private McPatchUpdating As Integer = 0
+    Public Function ShouldBlockLaunchByMcPatch() As Boolean
+        If PanMcPatchUpdate.Visibility <> Visibility.Visible Then Return False
+        If Interlocked.CompareExchange(McPatchRefreshing, 0, 0) <> 0 Then Return True
+        If Interlocked.CompareExchange(McPatchUpdating, 0, 0) <> 0 Then Return True
+        If McPatchLastResult Is Nothing Then Return True
+        Return McPatchLastResult.NeedUpdate
+    End Function
+    Private Sub RefreshLaunchButtonForMcPatch()
+        If FrmLaunchLeft IsNot Nothing Then RunInUi(Sub() FrmLaunchLeft.RefreshButtonsUI())
+    End Sub
 
     Private Sub Init() Handles Me.Loaded
         PanBack.ScrollToHome()
@@ -52,6 +62,7 @@ Public Class PageLaunchRight
             PanMcPatchUpdate.Visibility = Visibility.Collapsed
             McPatchLastInstanceKey = ""
             McPatchLastResult = Nothing
+            RefreshLaunchButtonForMcPatch()
             Return
         End If
 
@@ -101,6 +112,7 @@ Public Class PageLaunchRight
         LabMcPatchLatestVersion.Text = "最新版本：读取中..."
         LabMcPatchProgress.Text = "正在获取更新列表..."
         UpdateMcPatchLinkText()
+        RefreshLaunchButtonForMcPatch()
 
         RunInNewThread(
         Sub()
@@ -123,6 +135,7 @@ Public Class PageLaunchRight
                         If instanceKey <> McPatchLastInstanceKey Then Exit Sub
                         McPatchLastResult = result
                         RenderMcPatchCheckResult(result)
+                        RefreshLaunchButtonForMcPatch()
                     End Sub)
             Catch ex As Exception
                 RunInUi(
@@ -134,6 +147,7 @@ Public Class PageLaunchRight
                         BtnMcPatchRetry.Visibility = Visibility.Visible
                         BtnMcPatchUpdateNow.IsEnabled = False
                         LabMcPatchProgress.Text = "更新列表获取失败，可手动重试。"
+                        RefreshLaunchButtonForMcPatch()
                     End Sub)
                 Log(ex, "[MCPatch] 获取更新列表失败", If(ModeDebug, LogLevel.Debug, LogLevel.Hint))
             Finally
@@ -201,6 +215,7 @@ Public Class PageLaunchRight
         BtnMcPatchRetry.IsEnabled = False
         ProgressMcPatch.Value = 0
         LabMcPatchProgress.Text = "准备更新..."
+        RefreshLaunchButtonForMcPatch()
 
         RunInNewThread(
         Sub()
@@ -229,6 +244,7 @@ Public Class PageLaunchRight
                     Sub()
                         BtnMcPatchRetry.IsEnabled = True
                         RefreshMcPatchModule(True)
+                        RefreshLaunchButtonForMcPatch()
                     End Sub)
             End Try
         End Sub, $"MCPatch 更新执行 #{GetUuid()}")
