@@ -16,6 +16,8 @@ Public Class PageLaunchRight
     Private McPatchCurrentError As String = ""
     Private McPatchRefreshing As Integer = 0
     Private McPatchUpdating As Integer = 0
+    Private McPatchEndpointSignature As String = ""
+    Private McPatchSelectionSyncing As Integer = 0
     Public Function ShouldBlockLaunchByMcPatch() As Boolean
         If PanMcPatchUpdate.Visibility <> Visibility.Visible Then Return False
         If Interlocked.CompareExchange(McPatchRefreshing, 0, 0) <> 0 Then Return True
@@ -67,7 +69,7 @@ Public Class PageLaunchRight
         End If
 
         PanMcPatchUpdate.Visibility = Visibility.Visible
-        Dim instanceKey = context.RootPath & "|" & context.SelectedVersionName
+        Dim instanceKey = context.RootPath & "|" & context.SelectedVersionName & "|" & GetMcPatchEndpointKey(context.SelectedEndpoint)
         If Not force AndAlso instanceKey = McPatchLastInstanceKey Then Return
         If Interlocked.CompareExchange(McPatchUpdating, 0, 0) <> 0 Then Return
 
@@ -92,11 +94,60 @@ Public Class PageLaunchRight
         If Not File.Exists(configPath) Then Return Nothing
 
         Dim endpoints = McPatchService.LoadEndpointOptions(configPath)
+        SyncMcPatchServerOptions(endpoints)
+        Dim selectedIndex As Integer = ComboMcPatchServer.SelectedIndex
+        If selectedIndex < 0 Then selectedIndex = 0
+        If selectedIndex >= endpoints.Count Then selectedIndex = Math.Max(0, endpoints.Count - 1)
         Return New McPatchUpdateContext With {
             .RootPath = rootPath,
             .SelectedVersionName = selectedName,
-            .Endpoints = endpoints
+            .Endpoints = endpoints,
+            .SelectedEndpointIndex = selectedIndex
         }
+    End Function
+    Private Sub SyncMcPatchServerOptions(endpoints As IReadOnlyList(Of McPatchEndpointOptions))
+        Dim signature = String.Join("|", endpoints.Select(Function(endpoint) GetMcPatchEndpointKey(endpoint)))
+        If signature = McPatchEndpointSignature Then Return
+
+        Dim selectedKey = ""
+        Dim currentItem = TryCast(ComboMcPatchServer.SelectedItem, MyComboBoxItem)
+        Dim currentEndpoint = If(currentItem Is Nothing, Nothing, TryCast(currentItem.Tag, McPatchEndpointOptions))
+        If currentEndpoint IsNot Nothing Then selectedKey = GetMcPatchEndpointKey(currentEndpoint)
+
+        Dim selectedIndex As Integer = ComboMcPatchServer.SelectedIndex
+        If selectedIndex < 0 Then selectedIndex = 0
+
+        Interlocked.Exchange(McPatchSelectionSyncing, 1)
+        Try
+            McPatchEndpointSignature = signature
+            ComboMcPatchServer.Items.Clear()
+            For Each endpoint In endpoints
+                ComboMcPatchServer.Items.Add(New MyComboBoxItem With {
+                    .Content = endpoint.DisplayName,
+                    .Tag = endpoint
+                })
+            Next
+
+            If endpoints.Count > 0 Then
+                If Not String.IsNullOrWhiteSpace(selectedKey) Then
+                    For i = 0 To endpoints.Count - 1
+                        If String.Equals(GetMcPatchEndpointKey(endpoints(i)), selectedKey, StringComparison.Ordinal) Then
+                            selectedIndex = i
+                            Exit For
+                        End If
+                    Next
+                End If
+
+                If selectedIndex >= endpoints.Count Then selectedIndex = 0
+                ComboMcPatchServer.SelectedIndex = selectedIndex
+            End If
+        Finally
+            Interlocked.Exchange(McPatchSelectionSyncing, 0)
+        End Try
+    End Sub
+    Private Shared Function GetMcPatchEndpointKey(endpoint As McPatchEndpointOptions) As String
+        If endpoint Is Nothing Then Return ""
+        Return $"{endpoint.Name}|{endpoint.VersionListUrl}|{endpoint.PackageUrlTemplate}"
     End Function
     Private Sub StartMcPatchCheck(context As McPatchUpdateContext, instanceKey As String)
         If Interlocked.CompareExchange(McPatchRefreshing, 1, 0) <> 0 Then Return
@@ -111,6 +162,7 @@ Public Class PageLaunchRight
         LabMcPatchCurrentVersion.Text = "当前版本：读取中..."
         LabMcPatchLatestVersion.Text = "最新版本：读取中..."
         LabMcPatchProgress.Text = "正在获取更新列表..."
+        LabMcPatchPackageProgress.Text = ""
         UpdateMcPatchLinkText()
         RefreshLaunchButtonForMcPatch()
 
@@ -147,6 +199,7 @@ Public Class PageLaunchRight
                         BtnMcPatchRetry.Visibility = Visibility.Visible
                         BtnMcPatchUpdateNow.IsEnabled = False
                         LabMcPatchProgress.Text = "更新列表获取失败，可手动重试。"
+                        LabMcPatchPackageProgress.Text = ""
                         RefreshLaunchButtonForMcPatch()
                     End Sub)
                 Log(ex, "[MCPatch] 获取更新列表失败", If(ModeDebug, LogLevel.Debug, LogLevel.Hint))
@@ -170,8 +223,10 @@ Public Class PageLaunchRight
             Dim firstVersion = result.PendingVersions.FirstOrDefault()
             Dim lastVersion = result.PendingVersions.LastOrDefault()
             LabMcPatchProgress.Text = $"待更新 {result.PendingVersions.Count} 个版本：{firstVersion} → {lastVersion}"
+            LabMcPatchPackageProgress.Text = "准备下载补丁包..."
         Else
             LabMcPatchProgress.Text = "当前已是最新，无需更新。"
+            LabMcPatchPackageProgress.Text = ""
         End If
     End Sub
     Private Sub UpdateMcPatchLinkText()
@@ -190,6 +245,10 @@ Public Class PageLaunchRight
         End Select
     End Sub
     Private Sub BtnMcPatchRetry_Click(sender As Object, e As MouseButtonEventArgs) Handles BtnMcPatchRetry.Click
+        RefreshMcPatchModule(True)
+    End Sub
+    Private Sub ComboMcPatchServer_SelectionChanged(sender As Object, e As SelectionChangedEventArgs) Handles ComboMcPatchServer.SelectionChanged
+        If Interlocked.CompareExchange(McPatchSelectionSyncing, 0, 0) <> 0 Then Return
         RefreshMcPatchModule(True)
     End Sub
     Private Sub BtnMcPatchUpdateNow_Click(sender As Object, e As MouseButtonEventArgs) Handles BtnMcPatchUpdateNow.Click
@@ -215,6 +274,7 @@ Public Class PageLaunchRight
         BtnMcPatchRetry.IsEnabled = False
         ProgressMcPatch.Value = 0
         LabMcPatchProgress.Text = "准备更新..."
+        LabMcPatchPackageProgress.Text = ""
         RefreshLaunchButtonForMcPatch()
 
         RunInNewThread(
@@ -223,11 +283,24 @@ Public Class PageLaunchRight
                 McPatchService.ApplyUpdates(
                     context,
                     pendingVersions,
-                    Sub(progress, message)
+                    Sub(progress)
                         RunInUi(
                             Sub()
-                                ProgressMcPatch.Value = Math.Max(0, Math.Min(1, progress))
-                                LabMcPatchProgress.Text = message
+                                ProgressMcPatch.Value = Math.Max(0, Math.Min(1, progress.OverallProgress))
+                                LabMcPatchProgress.Text = progress.Message
+                                If progress.PackageProgress.HasValue Then
+                                    Dim packageDownloadedBytes = progress.PackageDownloadedBytes.GetValueOrDefault()
+                                    Dim packageTotalBytes = progress.PackageTotalBytes.GetValueOrDefault()
+                                    Dim hasPackageTotalBytes = progress.PackageTotalBytes.HasValue AndAlso packageTotalBytes > 0
+                                    Dim packageProgress = Math.Max(0, Math.Min(1, progress.PackageProgress.Value))
+                                    If hasPackageTotalBytes Then
+                                        LabMcPatchPackageProgress.Text = $"当前包进度：{FormatMcPatchBytes(packageDownloadedBytes)}/{FormatMcPatchBytes(packageTotalBytes)}（{Math.Round(packageProgress * 100, 1)}%）"
+                                    Else
+                                        LabMcPatchPackageProgress.Text = $"当前包进度：{Math.Round(packageProgress * 100, 1)}%"
+                                    End If
+                                Else
+                                    LabMcPatchPackageProgress.Text = ""
+                                End If
                             End Sub)
                     End Sub)
                 RunInUi(Sub() Hint("MCPatch 更新完成！", HintType.Finish))
@@ -249,6 +322,21 @@ Public Class PageLaunchRight
             End Try
         End Sub, $"MCPatch 更新执行 #{GetUuid()}")
     End Sub
+    Private Shared Function FormatMcPatchBytes(bytes As Long) As String
+        If bytes < 1024 Then Return $"{bytes} B"
+
+        Dim value As Double = bytes
+        Dim units = {"KB", "MB", "GB", "TB"}
+        Dim unitIndex As Integer = 0
+        value /= 1024
+
+        While value >= 1024 AndAlso unitIndex < units.Length - 1
+            value /= 1024
+            unitIndex += 1
+        End While
+
+        Return $"{value:0.##} {units(unitIndex)}"
+    End Function
 
 #Region "主页"
 

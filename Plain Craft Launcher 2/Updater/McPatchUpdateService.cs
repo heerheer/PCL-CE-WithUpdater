@@ -24,42 +24,77 @@ public sealed class McPatchUpdateService
 
     private readonly HttpClient _httpClient;
 
+    static McPatchUpdateService()
+    {
+        SharedHttpClient.Timeout = Timeout.InfiniteTimeSpan;
+    }
+
     public McPatchUpdateService(HttpClient? httpClient = null)
     {
         _httpClient = httpClient ?? SharedHttpClient;
+        _httpClient.Timeout = Timeout.InfiniteTimeSpan;
     }
 
-    public McPatchEndpointOptions LoadEndpointOptions(string? configPath)
+    public IReadOnlyList<McPatchEndpointOptions> LoadEndpointOptions(string? configPath)
     {
         if (string.IsNullOrWhiteSpace(configPath) || !File.Exists(configPath))
         {
-            return new McPatchEndpointOptions();
+            return [new McPatchEndpointOptions()];
         }
 
         try
         {
             var text = File.ReadAllText(configPath, Encoding.UTF8);
-            var parsed = JsonSerializer.Deserialize<McPatchEndpointOptions>(text, JsonOptions);
-            if (parsed is null)
-            {
-                return new McPatchEndpointOptions();
-            }
-
-            if (string.IsNullOrWhiteSpace(parsed.VersionListUrl))
-            {
-                parsed.VersionListUrl = McPatchEndpointOptions.DefaultVersionListUrl;
-            }
-
-            if (string.IsNullOrWhiteSpace(parsed.PackageUrlTemplate))
-            {
-                parsed.PackageUrlTemplate = McPatchEndpointOptions.DefaultPackageUrlTemplate;
-            }
-
-            return parsed;
+            var parsed = ParseEndpointOptions(text);
+            return parsed.Count > 0 ? parsed : [new McPatchEndpointOptions()];
         }
         catch
         {
-            return new McPatchEndpointOptions();
+            return [new McPatchEndpointOptions()];
+        }
+    }
+
+    private static IReadOnlyList<McPatchEndpointOptions> ParseEndpointOptions(string jsonText)
+    {
+        if (string.IsNullOrWhiteSpace(jsonText))
+        {
+            return [new McPatchEndpointOptions()];
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(jsonText);
+            var endpoints = new List<McPatchEndpointOptions>();
+
+            if (document.RootElement.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var element in document.RootElement.EnumerateArray())
+                {
+                    var parsed = element.Deserialize<McPatchEndpointOptions>(JsonOptions);
+                    if (parsed is null)
+                    {
+                        continue;
+                    }
+
+                    NormalizeEndpoint(parsed);
+                    endpoints.Add(parsed);
+                }
+            }
+            else
+            {
+                var parsed = document.RootElement.Deserialize<McPatchEndpointOptions>(JsonOptions);
+                if (parsed is not null)
+                {
+                    NormalizeEndpoint(parsed);
+                    endpoints.Add(parsed);
+                }
+            }
+
+            return endpoints.Count > 0 ? endpoints : [new McPatchEndpointOptions()];
+        }
+        catch
+        {
+            return [new McPatchEndpointOptions()];
         }
     }
 
@@ -70,7 +105,7 @@ public sealed class McPatchUpdateService
     {
         ValidateContext(context);
 
-        var versionListText = GetStringWithRetry(context.Endpoints.VersionListUrl, statusChanged, cancellationToken);
+        var versionListText = GetStringWithRetry(context.SelectedEndpoint.VersionListUrl, statusChanged, cancellationToken);
         var allVersions = versionListText
             .Replace("\r", string.Empty)
             .Split('\n', StringSplitOptions.RemoveEmptyEntries)
@@ -95,13 +130,18 @@ public sealed class McPatchUpdateService
     public void ApplyUpdates(
         McPatchUpdateContext context,
         IReadOnlyList<string> orderedPendingVersions,
-        Action<double, string>? progressChanged = null,
+        Action<McPatchUpdateProgress>? progressChanged = null,
         CancellationToken cancellationToken = default)
     {
         ValidateContext(context);
         if (orderedPendingVersions.Count == 0)
         {
-            progressChanged?.Invoke(1d, "无需更新");
+            progressChanged?.Invoke(new McPatchUpdateProgress
+            {
+                OverallProgress = 1d,
+                PackageProgress = 1d,
+                Message = "无需更新"
+            });
             return;
         }
 
@@ -112,20 +152,46 @@ public sealed class McPatchUpdateService
             cancellationToken.ThrowIfCancellationRequested();
 
             var version = orderedPendingVersions[i];
-            var packageUrl = BuildPackageUrl(context.Endpoints.PackageUrlTemplate, version);
+            var packageUrl = BuildPackageUrl(context.SelectedEndpoint.PackageUrlTemplate, version);
             var stageBase = (double)i / orderedPendingVersions.Count;
-            progressChanged?.Invoke(stageBase, $"正在下载补丁 {version}");
+            progressChanged?.Invoke(new McPatchUpdateProgress
+            {
+                OverallProgress = stageBase,
+                PackageProgress = null,
+                Message = $"正在下载补丁 {version}"
+            });
 
             var packagePath = Path.Combine(Path.GetTempPath(), $"mcpatch-{version}-{Guid.NewGuid():N}.zip");
             try
             {
-                DownloadFileWithRetry(packageUrl, packagePath, cancellationToken);
-                progressChanged?.Invoke(stageBase + 0.2d / orderedPendingVersions.Count, $"正在应用补丁 {version}");
+                DownloadFileWithRetry(packageUrl, packagePath, progress =>
+                {
+                    var packageProgress = progress.PackageProgress ?? 0d;
+                    progressChanged?.Invoke(new McPatchUpdateProgress
+                    {
+                        OverallProgress = stageBase + (0.85d * packageProgress / orderedPendingVersions.Count),
+                        PackageProgress = progress.PackageProgress,
+                        PackageDownloadedBytes = progress.PackageDownloadedBytes,
+                        PackageTotalBytes = progress.PackageTotalBytes,
+                        Message = progress.Message
+                    });
+                }, cancellationToken);
+                progressChanged?.Invoke(new McPatchUpdateProgress
+                {
+                    OverallProgress = stageBase + 0.85d / orderedPendingVersions.Count,
+                    PackageProgress = null,
+                    Message = $"正在应用补丁 {version}"
+                });
 
                 ApplyPatchPackage(context, packagePath, cancellationToken);
                 WriteCurrentVersion(context, version);
 
-                progressChanged?.Invoke((double)(i + 1) / orderedPendingVersions.Count, $"补丁 {version} 已完成");
+                progressChanged?.Invoke(new McPatchUpdateProgress
+                {
+                    OverallProgress = (double)(i + 1) / orderedPendingVersions.Count,
+                    PackageProgress = null,
+                    Message = $"补丁 {version} 已完成"
+                });
             }
             finally
             {
@@ -190,7 +256,11 @@ public sealed class McPatchUpdateService
         throw lastError ?? new InvalidOperationException("获取更新列表失败");
     }
 
-    private void DownloadFileWithRetry(string url, string targetPath, CancellationToken cancellationToken)
+    private void DownloadFileWithRetry(
+        string url,
+        string targetPath,
+        Action<McPatchUpdateProgress>? progressChanged,
+        CancellationToken cancellationToken)
     {
         Exception? lastError = null;
 
@@ -201,13 +271,59 @@ public sealed class McPatchUpdateService
             try
             {
                 using var request = new HttpRequestMessage(HttpMethod.Get, url);
-                using var response = _httpClient.Send(request, cancellationToken);
+                using var response = _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).GetAwaiter().GetResult();
                 response.EnsureSuccessStatusCode();
 
                 using var responseStream = response.Content.ReadAsStreamAsync(cancellationToken).GetAwaiter().GetResult();
                 Directory.CreateDirectory(Path.GetDirectoryName(targetPath) ?? Path.GetTempPath());
                 using var output = new FileStream(targetPath, FileMode.Create, FileAccess.Write, FileShare.None);
-                responseStream.CopyTo(output);
+
+                var totalBytes = response.Content.Headers.ContentLength;
+                var hasTotalBytes = totalBytes.HasValue && totalBytes.Value > 0;
+                var totalBytesValue = totalBytes.GetValueOrDefault();
+                var downloadedBytes = 0L;
+                var buffer = new byte[81920];
+                progressChanged?.Invoke(new McPatchUpdateProgress
+                {
+                    OverallProgress = 0d,
+                    PackageProgress = hasTotalBytes ? 0d : null,
+                    PackageDownloadedBytes = 0,
+                    PackageTotalBytes = totalBytes,
+                    Message = hasTotalBytes ? $"正在下载补丁包（0/{FormatBytes(totalBytesValue)}）" : "正在下载补丁包"
+                });
+
+                while (true)
+                {
+                    var read = responseStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken).GetAwaiter().GetResult();
+                    if (read <= 0)
+                    {
+                        break;
+                    }
+
+                    output.Write(buffer, 0, read);
+                    downloadedBytes += read;
+                    progressChanged?.Invoke(new McPatchUpdateProgress
+                    {
+                        OverallProgress = 0d,
+                        PackageProgress = hasTotalBytes ? Math.Min(1d, (double)downloadedBytes / totalBytesValue) : null,
+                        PackageDownloadedBytes = downloadedBytes,
+                        PackageTotalBytes = totalBytes,
+                        Message = hasTotalBytes
+                            ? $"正在下载补丁包（{FormatBytes(downloadedBytes)}/{FormatBytes(totalBytesValue)}）"
+                            : $"正在下载补丁包（已下载 {FormatBytes(downloadedBytes)}）"
+                    });
+                }
+
+                progressChanged?.Invoke(new McPatchUpdateProgress
+                {
+                    OverallProgress = 0d,
+                    PackageProgress = hasTotalBytes ? 1d : null,
+                    PackageDownloadedBytes = downloadedBytes,
+                    PackageTotalBytes = totalBytes,
+                    Message = hasTotalBytes
+                        ? $"补丁包下载完成（{FormatBytes(downloadedBytes)}/{FormatBytes(totalBytesValue)}）"
+                        : $"补丁包下载完成（已下载 {FormatBytes(downloadedBytes)}）"
+                });
                 return;
             }
             catch (Exception ex)
@@ -223,6 +339,27 @@ public sealed class McPatchUpdateService
         }
 
         throw lastError ?? new InvalidOperationException("下载补丁失败");
+    }
+
+    private static string FormatBytes(long bytes)
+    {
+        if (bytes < 1024)
+        {
+            return $"{bytes} B";
+        }
+
+        var value = (double)bytes;
+        var unitIndex = 0;
+        string[] units = ["KB", "MB", "GB", "TB"];
+        value /= 1024d;
+
+        while (value >= 1024d && unitIndex < units.Length - 1)
+        {
+            value /= 1024d;
+            unitIndex++;
+        }
+
+        return $"{value:0.##} {units[unitIndex]}";
     }
 
     private void ApplyPatchPackage(McPatchUpdateContext context, string packagePath, CancellationToken cancellationToken)
@@ -469,6 +606,23 @@ public sealed class McPatchUpdateService
         {
             yield return Path.Combine(context.RootPath, "mc-patch-version.txt");
         }
+    }
+
+    private static void NormalizeEndpoint(McPatchEndpointOptions endpoint)
+    {
+        if (string.IsNullOrWhiteSpace(endpoint.VersionListUrl))
+        {
+            endpoint.VersionListUrl = McPatchEndpointOptions.DefaultVersionListUrl;
+        }
+
+        if (string.IsNullOrWhiteSpace(endpoint.PackageUrlTemplate))
+        {
+            endpoint.PackageUrlTemplate = McPatchEndpointOptions.DefaultPackageUrlTemplate;
+        }
+
+        endpoint.Name = endpoint.Name?.Trim() ?? string.Empty;
+        endpoint.VersionListUrl = endpoint.VersionListUrl.Trim();
+        endpoint.PackageUrlTemplate = endpoint.PackageUrlTemplate.Trim();
     }
 
     private static string ResolvePatchPath(McPatchUpdateContext context, string patchPath)
