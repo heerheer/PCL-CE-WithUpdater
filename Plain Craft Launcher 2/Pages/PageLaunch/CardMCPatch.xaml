@@ -23,6 +23,26 @@
             <TextBlock x:Name="LabPackage" FontSize="12.5" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"
                        Foreground="{DynamicResource ColorBrushGray3}" />
             <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                <Path x:Name="SpinnerUpdate" Visibility="Collapsed" Width="18" Height="18"
+                      VerticalAlignment="Center" Margin="0,0,8,0" Stretch="Uniform"
+                      Data="M 3,10 A 7,7 0 1,0 17,10"
+                      Stroke="{DynamicResource ColorBrush3}" StrokeThickness="2.5"
+                      RenderTransformOrigin="0.5,0.5">
+                    <Path.RenderTransform>
+                        <RotateTransform x:Name="SpinnerUpdateRotate" />
+                    </Path.RenderTransform>
+                    <Path.Triggers>
+                        <EventTrigger RoutedEvent="Loaded">
+                            <BeginStoryboard>
+                                <Storyboard RepeatBehavior="Forever">
+                                    <DoubleAnimation Storyboard.TargetName="SpinnerUpdateRotate"
+                                                     Storyboard.TargetProperty="Angle"
+                                                     From="0" To="360" Duration="0:0:1" />
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+                    </Path.Triggers>
+                </Path>
                 <local:MyButton x:Name="BtnUpdate" Height="32" ColorType="Highlight" TextPadding="24,0,24,0"
                                 Text="{DynamicResource Launch.MCPatch.Action.Update}" IsEnabled="False"
                                 Click="BtnUpdate_Click" />

@@ -189,6 +189,7 @@ public partial class CardMCPatch : UserControl
         BarProgress.Value = 0;
         LabMain.Text = "";
         LabPackage.Text = "";
+        SpinnerUpdate.Visibility = Visibility.Visible; // 开始更新后显示旋转圆环
         Render();
         UpdateGate();
 
@@ -202,9 +203,9 @@ public partial class CardMCPatch : UserControl
                     if (_lastKey != key) return;
                     BarProgress.Value = Math.Clamp(progress.Overall * 100, 0, 100);
                     LabMain.Text = progress.Message;
-                    LabPackage.Text = progress.PackagePercent is { } percent
-                        ? $"{percent}%"
-                        : progress.TotalBytes > 0 ? $"{progress.DownloadedBytes}/{progress.TotalBytes} 字节" : "";
+                    LabPackage.Text = progress.TotalBytes > 0
+                        ? $"{progress.DownloadedBytes / 1048576d:0.0} MB / {progress.TotalBytes / 1048576d:0.0} MB"
+                        : progress.DownloadedBytes > 0 ? $"{progress.DownloadedBytes / 1048576d:0.0} MB" : "";
                 }), token);
                 ModBase.RunInUi(() => HintService.Hint(Lang.Text("Launch.MCPatch.Done"), HintType.Success));
             }
@@ -225,6 +226,7 @@ public partial class CardMCPatch : UserControl
                 ModBase.RunInUi(() =>
                 {
                     _isUpdating = false;
+                    SpinnerUpdate.Visibility = System.Windows.Visibility.Collapsed; // 更新完成/失败后恢复
                     UpdateGate();
                     Evaluate(true); // 恢复按钮 + 重新检查（成功后解除门禁）
                 });
