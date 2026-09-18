@@ -219,36 +219,10 @@ public partial class FormMain
         // Timer 启动
         ModAnimation.AniStart();
         ModMain.TimerMainStart();
-        // 特殊版本提示
         ModBase.RunInNewThread(() =>
         {
-            // 特殊版本提示
             try
             {
-
-
-#if DEBUG || DEBUGCI
-
-                if (Environment.GetEnvironmentVariable("PCL_DISABLE_DEBUG_HINT") is null)
-                {
-
-#if DEBUG
-                    var hint = Lang.Text("Main.SpecialVersion.DebugHint");
-#else
-                    var hint = Lang.Text("Main.SpecialVersion.CiHint");
-#endif
-
-                    ModMain.MyMsgBox(
-                        $"{hint}{"\r\n"}{"\r\n"}{Lang.Text("Main.SpecialVersion.HideHintNotice")}",
-                        Lang.Text("Main.SpecialVersion.Title"), Lang.Text("Main.SpecialVersion.IUnderstand"), Lang.Text("Main.SpecialVersion.OpenDownloadPageAndExit"), isWarn: true, button2Action: () =>
-                        {
-                            ModBase.OpenWebsite("https://github.com/PCL-Community/PCL2-CE/releases/latest");
-                            EndProgram(false);
-                        });
-                }
-
-
-#endif
                 // EULA 提示
                 if (!States.System.LauncherEula)
                     switch (ModMain.MyMsgBox(Lang.Text("Main.Eula.Message"), Lang.Text("Main.Eula.Title"), Lang.Text("Common.Action.Agree"), Lang.Text("Common.Action.Decline"), Lang.Text("Main.Eula.View"),

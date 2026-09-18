@@ -1,0 +1,8 @@
+<UserControl x:Class="PCL.SpriteSheetAnimation"
+             x:Name="Root"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             IsHitTestVisible="False">
+    <Image x:Name="ImgSprite" Stretch="Uniform"
+           VerticalAlignment="Center" HorizontalAlignment="Center" />
+</UserControl>

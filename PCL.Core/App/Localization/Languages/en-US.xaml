@@ -1618,6 +1618,25 @@
     <sys:String x:Key="Launch.Home.Button.Download">Download</sys:String>
     <sys:String x:Key="Launch.Home.Button.Launch">Launch</sys:String>
     <sys:String x:Key="Launch.Home.Button.Loading">Loading</sys:String>
+    <!-- MCPatch update card -->
+    <sys:String x:Key="Launch.MCPatch.Title">MCPatch Update</sys:String>
+    <sys:String x:Key="Launch.MCPatch.CurrentVersion">Current version: {0}</sys:String>
+    <sys:String x:Key="Launch.MCPatch.LatestVersion">Latest version: {0}</sys:String>
+    <sys:String x:Key="Launch.MCPatch.NeedUpdate">Update required</sys:String>
+    <sys:String x:Key="Launch.MCPatch.UpToDate">Up to date</sys:String>
+    <sys:String x:Key="Launch.MCPatch.Status.FirstFetch">Version list: fetching</sys:String>
+    <sys:String x:Key="Launch.MCPatch.Status.Retrying">Version list: retrying ({0})</sys:String>
+    <sys:String x:Key="Launch.MCPatch.Status.Success">Version list: loaded</sys:String>
+    <sys:String x:Key="Launch.MCPatch.Status.Failed">Version list: failed</sys:String>
+    <sys:String x:Key="Launch.MCPatch.Action.Update">Update Now</sys:String>
+    <sys:String x:Key="Launch.MCPatch.Action.Retry">Retry</sys:String>
+    <sys:String x:Key="Launch.MCPatch.Action.Reload">Reload</sys:String>
+    <sys:String x:Key="Launch.MCPatch.GameRunning">Please close the running Minecraft before updating</sys:String>
+    <sys:String x:Key="Launch.MCPatch.Done">MCPatch update completed</sys:String>
+    <sys:String x:Key="Launch.MCPatch.FileOccupied">Files are in use. Close Minecraft / Java / file preview and retry</sys:String>
+    <sys:String x:Key="Launch.Home.Button.VersionMismatch">❌ Version mismatch — update required</sys:String>
+    <sys:String x:Key="Setup.About.MCPatch.Name">MCPatch Embedded</sys:String>
+    <sys:String x:Key="Setup.About.MCPatch.Info">Yay! The dev's super-fast feet go run-run~</sys:String>
     <sys:String x:Key="Launch.Home.Instance.InstallingCannotLaunch">The current instance is being installed and cannot be launched!</sys:String>
     <sys:String x:Key="Launch.Home.Instance.InstallingCannotSetup">The current instance is being installed and cannot be configured!</sys:String>
     <sys:String x:Key="Launch.Home.Instance.Loading">Loading, please wait</sys:String>

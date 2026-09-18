@@ -18,6 +18,7 @@ public partial class PageLaunchLeft
     private double actualUsedHeight;
     private double actualUsedWidth;
     private int btnLaunchState;
+    private bool btnLaunchMcPatchBlocked;
     private string _btnLaunchLanguage;
     private McInstance btnLaunchVersion;
     private bool isHeightAnimating;
@@ -272,14 +273,17 @@ public partial class PageLaunchLeft
 
         // 更新状态。
         var currentLanguage = LocalizationService.CurrentLanguage.Code;
+        var mcPatchBlocked = CardMCPatch.IsLaunchBlocked;
         if (currentState == btnLaunchState &&
             currentLanguage == _btnLaunchLanguage &&
+            mcPatchBlocked == btnLaunchMcPatchBlocked &&
             ((ModInstanceList.McMcInstanceSelected is null ? "" : ModInstanceList.McMcInstanceSelected.PathInstance) ?? "") ==
             ((btnLaunchVersion is null ? "" : btnLaunchVersion.PathInstance) ?? ""))
             goto ExitRefresh;
         _btnLaunchLanguage = currentLanguage;
         btnLaunchVersion = ModInstanceList.McMcInstanceSelected;
         btnLaunchState = currentState;
+        btnLaunchMcPatchBlocked = mcPatchBlocked;
         switch (currentState)
         {
             case 0:
@@ -326,6 +330,13 @@ public partial class PageLaunchLeft
                 else
                     BtnLaunch.IsEnabled = false;
                 ModMain.frmLaunchLeft.LabVersion.Text = ModInstanceList.McMcInstanceSelected.Name;
+                // MCPatch 门禁：版本不一致 → 置灰并改文案（蓝图 §6.2）
+                if (CardMCPatch.IsLaunchBlocked)
+                {
+                    _launchButtonAction = LaunchButtonAction.Disabled;
+                    ModMain.frmLaunchLeft.BtnLaunch.Text = Lang.Text("Launch.Home.Button.VersionMismatch");
+                    ModMain.frmLaunchLeft.BtnLaunch.IsEnabled = false;
+                }
                 break;
             }
             // FrmLaunchLeft.BtnMore.Visibility = Visibility.Visible '由功能隐藏设置修改
@@ -816,6 +827,10 @@ public partial class PageLaunchLeft
             if (_launchButtonAction != LaunchButtonAction.Download)
                 BtnLaunch.IsEnabled = false;
         }
+
+        // MCPatch 门禁：版本不一致 → 无论账号状态都锁定启动按钮（蓝图 §6.2）
+        if (CardMCPatch.IsLaunchBlocked)
+            BtnLaunch.IsEnabled = false;
 
         // 刷新页面
         if (pageCurrent == type)

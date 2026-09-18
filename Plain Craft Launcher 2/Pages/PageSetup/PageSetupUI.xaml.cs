@@ -834,25 +834,16 @@ public partial class PageSetupUI
             // 工具子页面 (FrmToolsLeft)
             if (ModMain.frmToolsLeft is not null)
             {
-                ModMain.frmToolsLeft.ItemGameLink.Visibility = !HiddenForceShow && conf.ToolsGameLink
-                    ? Visibility.Collapsed
-                    : Visibility.Visible;
                 ModMain.frmToolsLeft.ItemTest.Visibility =
                     !HiddenForceShow && conf.ToolsTest ? Visibility.Collapsed : Visibility.Visible;
-                
-                // 处理分类标题
-                var isGameLinkVisible = (!HiddenForceShow && !conf.ToolsGameLink) || HiddenForceShow;
-                ModMain.frmToolsLeft.TextGameLinkCategory.Visibility = isGameLinkVisible ? Visibility.Visible : Visibility.Collapsed;
-                if (isGameLinkVisible) ModMain.frmToolsLeft.TextGameLinkCategory.Opacity = 0.6;
 
+                // 处理分类标题
                 var isToolsVisible = (!HiddenForceShow && !conf.ToolsTest) || HiddenForceShow;
                 ModMain.frmToolsLeft.TextToolsCategory.Visibility = isToolsVisible ? Visibility.Visible : Visibility.Collapsed;
                 if (isToolsVisible) ModMain.frmToolsLeft.TextToolsCategory.Opacity = 0.6;
-                
+
                 // 统计工具页可用项数量
                 var toolsCount = 0;
-                if (!conf.ToolsGameLink)
-                    toolsCount += 1;
                 if (!conf.ToolsTest)
                     toolsCount += 1;
                 ModMain.frmToolsLeft.PanItem.Visibility =
