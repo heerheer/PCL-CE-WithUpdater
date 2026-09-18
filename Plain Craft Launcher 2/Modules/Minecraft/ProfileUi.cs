@@ -181,11 +181,8 @@ public static class ProfileUi
 
     public static bool CanCreateOtherProfile()
     {
-#if DEBUG || DEBUGCI
+        // MCPatch 分支需求：新建档案无条件显示 正版 / 第三方 / 离线（蓝图 §7.2）
         return true;
-#else
-        return ProfileService.HasMicrosoftProfile || (Lang.IsFeaturesUnrestricted && ProfileService.Profiles.Count > 0) || NetworkHelper.IsNetworkAvailable() is false;
-#endif
     }
 
     public static void CreateProfile()
