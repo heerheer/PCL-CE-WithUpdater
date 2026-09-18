@@ -2,19 +2,21 @@ using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
 namespace PCL;
 
 /// <summary>
 /// 精灵表动画控件：将一张竖排分帧的透明 PNG（frameOrder = TopToBottom）逐帧播放。
-/// 内部只用一张 BitmapSource，通过裁剪(Clip) + 缩放(RenderTransform) 逐帧呈现，性能友好。
+/// 每帧用 CroppedBitmap 裁剪后按帧切换 Source，显示尺寸 = 单帧尺寸 × Scale。
 /// </summary>
 public partial class SpriteSheetAnimation : UserControl
 {
     private readonly DispatcherTimer _timer;
     private int _frameIndex;
     private bool _rebuilding;
+    private CroppedBitmap[]? _frames;
 
     public static readonly DependencyProperty ImageSourceProperty = DependencyProperty.Register(
         nameof(ImageSource), typeof(ImageSource), typeof(SpriteSheetAnimation),
@@ -46,7 +48,7 @@ public partial class SpriteSheetAnimation : UserControl
         InitializeComponent();
         _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1000d / Fps) };
         _timer.Tick += (_, _) => Advance();
-        Loaded += (_, _) => RebuildAndStart();
+        Loaded += (_, _) => Rebuild();
         Unloaded += (_, _) => _timer.Stop();
         IsVisibleChanged += (_, _) =>
         {
@@ -92,7 +94,7 @@ public partial class SpriteSheetAnimation : UserControl
     }
 
     private static void OnRequireRebuild(DependencyObject d, DependencyPropertyChangedEventArgs e)
-        => ((SpriteSheetAnimation)d).RebuildAndStart();
+        => ((SpriteSheetAnimation)d).Rebuild();
 
     private static void OnFpsChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
@@ -103,7 +105,7 @@ public partial class SpriteSheetAnimation : UserControl
         if (ctrl.IsVisible) ctrl._timer.Start();
     }
 
-    private void RebuildAndStart()
+    private void Rebuild()
     {
         if (_rebuilding) return;
         _rebuilding = true;
@@ -114,16 +116,20 @@ public partial class SpriteSheetAnimation : UserControl
             var frameHeight = FrameHeight <= 0 ? 1 : FrameHeight;
             var scale = Scale <= 0 ? 1 : Scale;
 
-            // 精灵表总高度 = 单帧高度 × 帧数（竖排，自顶向下）；用 Clip 逐帧裁剪，无需重复解码
-            ImgSprite.Source = ImageSource;
+            // 逐帧裁剪，绘制时按显示尺寸等比缩放，不再依赖 Clip+Scale 定位（避免帧错位）
+            _frames = ImageSource is BitmapSource bmp
+                ? BuildFrames(bmp, (int)frameWidth, (int)frameHeight, frameCount)
+                : null;
 
-            ScaleSprite.ScaleX = scale;
-            ScaleSprite.ScaleY = scale;
-            Width = frameWidth * scale;
-            Height = frameHeight * scale;
+            var displayWidth = frameWidth * scale;
+            var displayHeight = frameHeight * scale;
+            Width = displayWidth;
+            Height = displayHeight;
+            ImgSprite.Width = displayWidth;
+            ImgSprite.Height = displayHeight;
 
             _frameIndex = Math.Clamp(_frameIndex, 0, frameCount - 1);
-            UpdateFrame(frameCount, frameWidth, frameHeight);
+            UpdateFrame();
 
             if (IsVisible || IsLoaded)
             {
@@ -137,18 +143,32 @@ public partial class SpriteSheetAnimation : UserControl
         }
     }
 
+    private static CroppedBitmap[] BuildFrames(BitmapSource bmp, int frameWidth, int frameHeight, int frameCount)
+    {
+        var frames = new CroppedBitmap[frameCount];
+        var sheetWidth = bmp.PixelWidth;
+        var sheetHeight = bmp.PixelHeight;
+        var fw = Math.Min(frameWidth, sheetWidth);
+        for (var i = 0; i < frameCount; i++)
+        {
+            var y = Math.Min(i * frameHeight, Math.Max(0, sheetHeight - frameHeight));
+            frames[i] = new CroppedBitmap(bmp, new Int32Rect(0, y, fw, frameHeight));
+            frames[i].Freeze();
+        }
+        return frames;
+    }
+
     private void Advance()
     {
         var frameCount = Math.Max(1, FrameCount);
         _frameIndex = (_frameIndex + 1) % frameCount;
-        var frameWidth = FrameWidth <= 0 ? 1 : FrameWidth;
-        var frameHeight = FrameHeight <= 0 ? 1 : FrameHeight;
-        UpdateFrame(frameCount, frameWidth, frameHeight);
+        UpdateFrame();
     }
 
-    private void UpdateFrame(int frameCount, double frameWidth, double frameHeight)
+    private void UpdateFrame()
     {
-        var y = Math.Clamp(_frameIndex, 0, frameCount - 1) * frameHeight;
-        ClipFrame.Rect = new Rect(0, y, frameWidth, frameHeight);
+        var frameCount = Math.Max(1, FrameCount);
+        var index = Math.Clamp(_frameIndex, 0, frameCount - 1);
+        ImgSprite.Source = _frames is { Length: > 0 } ? _frames[index] : ImageSource;
     }
 }

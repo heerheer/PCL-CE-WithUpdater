@@ -2,14 +2,7 @@
              x:Name="Root"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             ClipToBounds="True"
              IsHitTestVisible="False">
-    <Image x:Name="ImgSprite" Stretch="None" VerticalAlignment="Top" HorizontalAlignment="Left">
-        <Image.RenderTransform>
-            <ScaleTransform x:Name="ScaleSprite" CenterX="0" CenterY="0" />
-        </Image.RenderTransform>
-        <Image.Clip>
-            <RectangleGeometry x:Name="ClipFrame" />
-        </Image.Clip>
-    </Image>
+    <Image x:Name="ImgSprite" Stretch="Uniform"
+           VerticalAlignment="Center" HorizontalAlignment="Center" />
 </UserControl>
