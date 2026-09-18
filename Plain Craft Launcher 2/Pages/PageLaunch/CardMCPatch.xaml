@@ -5,10 +5,16 @@
              xmlns:coreControls="clr-namespace:PCL.Core.UI.Controls;assembly=PCL.Core"
              Visibility="Collapsed">
     <local:MyCard Title="{DynamicResource Launch.MCPatch.Title}" Margin="0,0,0,15">
-        <local:MyComboBox x:Name="ComboServer" Width="150" Margin="0,9,12,0"
-                          HorizontalAlignment="Right" VerticalAlignment="Top"
-                          Visibility="Collapsed"
-                          SelectionChanged="ComboServer_SelectionChanged" />
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top"
+                    Margin="0,9,12,0">
+            <local:MyComboBox x:Name="ComboServer" Width="150" Margin="0,0,4,0"
+                              VerticalAlignment="Center" Visibility="Collapsed"
+                              SelectionChanged="ComboServer_SelectionChanged" />
+            <local:MyIconTextButton x:Name="BtnReload" Height="22" VerticalAlignment="Center"
+                                    SvgIcon="lucide/refresh-cw" LogoScale="1"
+                                    Text="{DynamicResource Launch.MCPatch.Action.Reload}"
+                                    Click="BtnReload_Click" />
+        </StackPanel>
         <StackPanel Margin="25,38,23,15">
             <TextBlock x:Name="LabCurrent" FontSize="13" Margin="0,0,0,3"
                        Foreground="{DynamicResource ColorBrush1}" />

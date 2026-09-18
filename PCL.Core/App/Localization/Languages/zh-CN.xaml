@@ -1630,6 +1630,7 @@
     <sys:String x:Key="Launch.MCPatch.Status.Failed">版本列表：失败</sys:String>
     <sys:String x:Key="Launch.MCPatch.Action.Update">立刻更新</sys:String>
     <sys:String x:Key="Launch.MCPatch.Action.Retry">手动重试</sys:String>
+    <sys:String x:Key="Launch.MCPatch.Action.Reload">重新加载</sys:String>
     <sys:String x:Key="Launch.MCPatch.GameRunning">请先关闭正在运行的 Minecraft，再进行更新</sys:String>
     <sys:String x:Key="Launch.MCPatch.Done">MCPatch 更新完成</sys:String>
     <sys:String x:Key="Launch.MCPatch.FileOccupied">文件被占用，请先关闭正在运行的 Minecraft / Java / 文件预览后重试</sys:String>

@@ -252,6 +252,12 @@ public partial class CardMCPatch : UserControl
         Evaluate(true);
     }
 
+    private void BtnReload_Click(object sender, ModBase.RouteEventArgs e)
+    {
+        // 重新加载：重新读取本地版本 + 远程版本并对比需要更新的文件列表（蓝图 §6.2）
+        Evaluate(true);
+    }
+
     // ---------- 服务器下拉 ----------
 
     private void RebuildCombo()
