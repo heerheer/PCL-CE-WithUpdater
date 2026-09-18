@@ -1634,6 +1634,8 @@
     <sys:String x:Key="Launch.MCPatch.Done">MCPatch update completed</sys:String>
     <sys:String x:Key="Launch.MCPatch.FileOccupied">Files are in use. Close Minecraft / Java / file preview and retry</sys:String>
     <sys:String x:Key="Launch.Home.Button.VersionMismatch">❌ Version mismatch — update required</sys:String>
+    <sys:String x:Key="Setup.About.MCPatch.Name">MCPatch Embedded</sys:String>
+    <sys:String x:Key="Setup.About.MCPatch.Info">Yay! The dev's super-fast feet go run-run~</sys:String>
     <sys:String x:Key="Launch.Home.Instance.InstallingCannotLaunch">The current instance is being installed and cannot be launched!</sys:String>
     <sys:String x:Key="Launch.Home.Instance.InstallingCannotSetup">The current instance is being installed and cannot be configured!</sys:String>
     <sys:String x:Key="Launch.Home.Instance.Loading">Loading, please wait</sys:String>

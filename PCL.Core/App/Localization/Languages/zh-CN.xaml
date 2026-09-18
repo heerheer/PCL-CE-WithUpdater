@@ -1634,6 +1634,8 @@
     <sys:String x:Key="Launch.MCPatch.Done">MCPatch 更新完成</sys:String>
     <sys:String x:Key="Launch.MCPatch.FileOccupied">文件被占用，请先关闭正在运行的 Minecraft / Java / 文件预览后重试</sys:String>
     <sys:String x:Key="Launch.Home.Button.VersionMismatch">❌ 版本不一致请更新</sys:String>
+    <sys:String x:Key="Setup.About.MCPatch.Name">MCPatch内嵌版</sys:String>
+    <sys:String x:Key="Setup.About.MCPatch.Info">哦耶小赫神速的脚脚飞快的跑跑~</sys:String>
     <sys:String x:Key="Launch.Home.Instance.InstallingCannotLaunch">当前实例正在安装，无法启动！</sys:String>
     <sys:String x:Key="Launch.Home.Instance.InstallingCannotSetup">当前实例正在安装，暂无法进行实例设置！</sys:String>
     <sys:String x:Key="Launch.Home.Instance.Loading">正在加载中，请稍候</sys:String>

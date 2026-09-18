@@ -24,6 +24,7 @@
                         <RowDefinition Height="45" />
                         <RowDefinition Height="45" />
                         <RowDefinition Height="45" />
+                        <RowDefinition Height="45" />
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="40" />
@@ -99,6 +100,32 @@
                         Grid.Column="2"
                         Height="35"
                         local:CustomEventService.EventData="https://github.com/PCL-Community/PCL2-CE"
+                        local:CustomEventService.EventType="OpenUrl"
+                        Text="{DynamicResource Setup.About.SourceCode}" />
+                    <local:MyListItem
+                        Grid.Row="3"
+                        Grid.Column="1"
+                        Margin="-5,0,15,0"
+                        Info="{DynamicResource Setup.About.MCPatch.Info}"
+                        IsHitTestVisible="False"
+                        Title="{DynamicResource Setup.About.MCPatch.Name}" />
+                    <Image
+                        x:Name="ImgMcPatch"
+                        Grid.Row="3"
+                        Margin="3"
+                        Source="/Plain Craft Launcher 2;component/Images/Heads/Logo-CE.png">
+                        <Image.Clip>
+                            <EllipseGeometry
+                                Center="17 17"
+                                RadiusX="17"
+                                RadiusY="17" />
+                        </Image.Clip>
+                    </Image>
+                    <local:MyButton
+                        Grid.Row="3"
+                        Grid.Column="2"
+                        Height="35"
+                        local:CustomEventService.EventData="https://github.com/heerheer/PCL-CE-WithUpdater"
                         local:CustomEventService.EventType="OpenUrl"
                         Text="{DynamicResource Setup.About.SourceCode}" />
                 </Grid>
