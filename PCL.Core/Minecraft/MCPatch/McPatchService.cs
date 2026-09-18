@@ -38,17 +38,21 @@ public static class McPatchService
     // ---------------- 检查（蓝图 §3） ----------------
 
     public static McPatchCheckResult Check(McPatchContext context,
-        Action<McPatchListStatus, int>? statusCallback = null, CancellationToken cancellationToken = default)
+        Action<McPatchListStatus, int>? statusCallback = null,
+        Action<string>? currentVersionCallback = null, CancellationToken cancellationToken = default)
     {
         if (context is null || string.IsNullOrWhiteSpace(context.RootPath) ||
             context.Endpoints is not { Count: > 0 })
             throw new McPatchException("MCPatch 更新上下文无效");
 
         statusCallback?.Invoke(McPatchListStatus.FirstFetch, 0);
+        // 本地版本先于远程读取：让 UI 在等待远程期间立即展示本地版本
+        var current = McPatchPath.ReadCurrentVersion(context.RootPath);
+        currentVersionCallback?.Invoke(current);
+
         var content = _FetchTextWithRetry(context.SelectedEndpoint.VersionListUrl, statusCallback, cancellationToken);
 
         var allVersions = McPatchConfig.ParseVersionList(content);
-        var current = McPatchPath.ReadCurrentVersion(context.RootPath);
         return new McPatchCheckResult
         {
             CurrentVersion = current,

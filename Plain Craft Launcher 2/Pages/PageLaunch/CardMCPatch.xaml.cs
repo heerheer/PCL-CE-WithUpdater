@@ -24,6 +24,7 @@ public partial class CardMCPatch : UserControl
     private volatile bool _isUpdating;
     private bool _rebuildingCombo;
     private McPatchCheckResult? _result;
+    private string _currentVersion = "";      // 本地版本（远程读取前先展示）
     private McPatchListStatus _listStatus;
     private int _statusAttempt;
     private CancellationTokenSource? _checkCts;
@@ -105,9 +106,11 @@ public partial class CardMCPatch : UserControl
         Visibility = Visibility.Collapsed;
         _lastKey = null;
         _result = null;
+        _currentVersion = "";
         _endpointSignature = "";
         _endpoints.Clear();
         _checkCts?.Cancel();
+        UpdateLoadMask();
         UpdateGate();
     }
 
@@ -123,6 +126,7 @@ public partial class CardMCPatch : UserControl
         _listStatus = McPatchListStatus.FirstFetch;
         _statusAttempt = 0;
         Render();
+        UpdateLoadMask();
         UpdateGate();
 
         var ctx = NewContext();
@@ -136,6 +140,15 @@ public partial class CardMCPatch : UserControl
                     _listStatus = status;
                     _statusAttempt = attempt;
                     RenderStatus();
+                }), current => ModBase.RunInUi(() =>
+                {
+                    if (_lastKey != key) return; // 忽略过期回调（蓝图 §6.2）
+                    // 本地版本先于远程展示（远程加载期间立即可见）
+                    _currentVersion = string.IsNullOrEmpty(current) ? "" : current;
+                    LabCurrent.Text = Lang.Text("Launch.MCPatch.CurrentVersion",
+                        string.IsNullOrEmpty(_currentVersion) ? "-" : _currentVersion);
+                    LabLoadCurrent.Text = Lang.Text("Launch.MCPatch.CurrentVersion",
+                        string.IsNullOrEmpty(_currentVersion) ? "-" : _currentVersion);
                 }), token);
                 ModBase.RunInUi(() =>
                 {
@@ -277,13 +290,14 @@ public partial class CardMCPatch : UserControl
     private void Render()
     {
         var needUpdate = _result?.NeedUpdate == true;
-        var current = _result is null || string.IsNullOrEmpty(_result.CurrentVersion)
-            ? "-"
-            : _result.CurrentVersion;
+        var current = !string.IsNullOrEmpty(_result?.CurrentVersion)
+            ? _result.CurrentVersion
+            : _currentVersion;
         var latest = _result is null || string.IsNullOrEmpty(_result.LatestVersion)
             ? "-"
             : _result.LatestVersion;
-        LabCurrent.Text = Lang.Text("Launch.MCPatch.CurrentVersion", current);
+        LabCurrent.Text = Lang.Text("Launch.MCPatch.CurrentVersion", string.IsNullOrEmpty(current) ? "-" : current);
+        LabLoadCurrent.Text = LabCurrent.Text;
         LabLatest.Text = Lang.Text("Launch.MCPatch.LatestVersion", latest) + "（" +
                          Lang.Text(needUpdate ? "Launch.MCPatch.NeedUpdate" : "Launch.MCPatch.UpToDate") + "）";
         RenderStatus();
@@ -292,17 +306,28 @@ public partial class CardMCPatch : UserControl
         BtnRetry.Visibility = _listStatus == McPatchListStatus.Failed ? Visibility.Visible : Visibility.Collapsed;
         // 无需更新时进度条满（蓝图 §6.2）
         BarProgress.Value = _result is not null && !needUpdate ? 100 : 0;
+        UpdateLoadMask();
     }
 
     private void RenderStatus()
     {
-        LabStatus.Text = _listStatus switch
+        var text = _listStatus switch
         {
             McPatchListStatus.FirstFetch => Lang.Text("Launch.MCPatch.Status.FirstFetch"),
             McPatchListStatus.Retrying => Lang.Text("Launch.MCPatch.Status.Retrying", _statusAttempt),
             McPatchListStatus.Success => Lang.Text("Launch.MCPatch.Status.Success"),
             _ => Lang.Text("Launch.MCPatch.Status.Failed")
         };
+        LabStatus.Text = text;
+        LabLoadStatus.Text = text;
+    }
+
+    // ---------- 初始化加载远程时的「模糊遮罩」 ----------
+
+    private void UpdateLoadMask()
+    {
+        var show = Visibility == Visibility.Visible && _isChecking;
+        LoadMask.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
     }
 
     // ---------- 启动门禁（蓝图 §6.2） ----------

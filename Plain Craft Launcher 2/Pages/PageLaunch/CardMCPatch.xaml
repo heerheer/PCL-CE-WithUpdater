@@ -2,6 +2,7 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:PCL"
+             xmlns:coreControls="clr-namespace:PCL.Core.UI.Controls;assembly=PCL.Core"
              Visibility="Collapsed">
     <local:MyCard Title="{DynamicResource Launch.MCPatch.Title}" Margin="0,0,0,15">
         <local:MyComboBox x:Name="ComboServer" Width="150" Margin="0,9,12,0"
@@ -52,5 +53,23 @@
                                 Click="BtnRetry_Click" />
             </StackPanel>
         </StackPanel>
+        <!-- 初始化/加载远程服务器时的「模糊遮罩」+ 狐狸奔跑动画（竖排 28 帧精灵表） -->
+        <Grid x:Name="LoadMask" Visibility="Collapsed" IsHitTestVisible="False">
+            <coreControls:BlurBorder x:Name="LoadMaskBlur" CornerRadius="5" BlurRadius="14"
+                                     BlurSamplingRate="0.6" Opacity="0.62"
+                                     Background="{DynamicResource ColorBrush6}" />
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                <local:SpriteSheetAnimation
+                    ImageSource="pack://application:,,,/Plain Craft Launcher 2;component/Images/Loading/fox_running.png"
+                    FrameWidth="256" FrameHeight="128" FrameCount="28" Fps="24" Scale="0.42"
+                    HorizontalAlignment="Center" VerticalAlignment="Center" />
+                <TextBlock x:Name="LabLoadCurrent" FontSize="13" Margin="0,8,0,0"
+                           HorizontalAlignment="Center" TextWrapping="Wrap"
+                           Foreground="{DynamicResource ColorBrush1}" />
+                <TextBlock x:Name="LabLoadStatus" FontSize="12" Margin="0,2,0,0"
+                           HorizontalAlignment="Center" TextWrapping="Wrap"
+                           Foreground="{DynamicResource ColorBrushGray3}" />
+            </StackPanel>
+        </Grid>
     </local:MyCard>
 </UserControl>
