@@ -828,6 +828,10 @@ public partial class PageLaunchLeft
                 BtnLaunch.IsEnabled = false;
         }
 
+        // MCPatch 门禁：版本不一致 → 无论账号状态都锁定启动按钮（蓝图 §6.2）
+        if (CardMCPatch.IsLaunchBlocked)
+            BtnLaunch.IsEnabled = false;
+
         // 刷新页面
         if (pageCurrent == type)
             return;

@@ -118,6 +118,13 @@ public static class McPatchService
             {
                 // 1. 下载（占本阶段前 85%）
                 var url = context.SelectedEndpoint.PackageUrlTemplate.Replace("{version}", version);
+                // 响应头获取阶段尚无字节进度：先提示“开始获取数据”，避免进度条/文案停滞（下载完上一包后同样如此）
+                progressCallback?.Invoke(new McPatchProgress
+                {
+                    Overall = stageStart,
+                    PackagePercent = null,
+                    Message = $"开始获取数据（{version}）..."
+                });
                 _DownloadWithRetry(url, zipPath, (read, total, percent) => progressCallback?.Invoke(
                     new McPatchProgress
                     {
