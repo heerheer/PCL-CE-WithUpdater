@@ -10,6 +10,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using ICSharpCode.SharpZipLib.BZip2;
+using PCL.Core.IO.Net.Http;
 
 namespace PCL.Core.Minecraft.MCPatch;
 
@@ -23,11 +24,16 @@ public static class McPatchService
     private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan DownloadTimeout = TimeSpan.FromMinutes(15);
 
-    /// <summary>共享 HttpClient；总超时交由各请求自行控制。</summary>
-    private static readonly Lazy<HttpClient> _httpClient = new(() => new HttpClient
-    {
-        Timeout = Timeout.InfiniteTimeSpan
-    });
+    /// <summary>共享 HttpClient；经 HttpProxyManager 接入 PCL 可选 HTTP 代理，总超时交由各请求自行控制。</summary>
+    private static readonly Lazy<HttpClient> _httpClient = new(() => new HttpClient(
+        new SocketsHttpHandler
+        {
+            UseProxy = true,
+            Proxy = HttpProxyManager.Instance
+        })
+        {
+            Timeout = Timeout.InfiniteTimeSpan
+        });
 
     // ---------------- 检查（蓝图 §3） ----------------
 
